@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { format, getDaysInMonth } from 'date-fns'
-import { StickyNote } from 'lucide-react'
+import { StickyNote, Settings } from 'lucide-react'
 import { usePlannerData } from '../hooks/usePlannerData'
 import { useNoteDays } from '../hooks/useNoteDays'
 import { EventModal } from '../components/EventModal'
+import { SettingsModal } from '../components/SettingsModal'
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -20,6 +21,7 @@ export function AnnualView({ year, onDayClick }) {
   const { events, categoryMap } = usePlannerData(year)
   const noteDays = useNoteDays()
   const [modal, setModal] = useState(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const { bandsByDay, dotsByDay } = useMemo(() => {
     const bands = {}   // dayKey → [{ event, color, startKey, endKey }]
@@ -70,6 +72,12 @@ export function AnnualView({ year, onDayClick }) {
         <span style={{ fontSize: 22, fontWeight: 600, color: '#e5e5e5', letterSpacing: -0.5 }}>{year}</span>
         <span style={{ fontSize: 13, color: '#555', flex: 1 }}>Annual Planner</span>
         <button
+          onClick={() => setSettingsOpen(true)}
+          style={gearBtnStyle}
+          title="Settings"
+          aria-label="Settings"
+        ><Settings size={15} color="#555" /></button>
+        <button
           onClick={() => setModal({ defaultDate: format(new Date(), 'yyyy-MM-dd') })}
           style={plusBtnStyle}
           title="New event"
@@ -100,6 +108,7 @@ export function AnnualView({ year, onDayClick }) {
           onClose={() => setModal(null)}
         />
       )}
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </div>
   )
 }
@@ -219,6 +228,12 @@ function EventBand({ color, title, day, start, end }) {
       }}
     />
   )
+}
+
+const gearBtnStyle = {
+  width: 30, height: 30, borderRadius: 15, border: 'none',
+  background: 'transparent', cursor: 'pointer',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
 }
 
 const plusBtnStyle = {

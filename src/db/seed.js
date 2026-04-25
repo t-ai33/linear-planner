@@ -6,13 +6,22 @@ const DEFAULT_CATEGORIES = [
   { id: 3, name: 'Personal', color: '#10b981' },
   { id: 4, name: 'Events', color: '#ef4444' },
   { id: 5, name: 'Social', color: '#8b5cf6' },
+  { id: 6, name: 'PH', color: '#ec4899' },
 ]
 
 const CATEGORY_NAMES = { 1: 'Work', 2: 'Meetings', 3: 'Personal', 4: 'Events', 5: 'Social' }
 
+const NEW_CATEGORIES = [
+  { id: 6, name: 'PH', color: '#ec4899' },
+]
+
 export async function migrateCategories() {
   for (const [id, name] of Object.entries(CATEGORY_NAMES)) {
     await db.categories.update(Number(id), { name })
+  }
+  for (const cat of NEW_CATEGORIES) {
+    const existing = await db.categories.get(cat.id)
+    if (!existing) await db.categories.put(cat)
   }
 }
 

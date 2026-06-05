@@ -7,25 +7,16 @@ import { EventModal } from '../components/EventModal'
 import { SettingsModal } from '../components/SettingsModal'
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-const DOW_LABELS = ['S','M','T','W','T','F','S']
+const DOW_LABELS = ['Su','Mo','Tu','We','Th','Fr','Sa']
 const MONTH_LABEL_WIDTH = 36
 const DAY_CELL_WIDTH = 32
+const TOTAL_COLS = 42   // 6 full weeks — covers all possible month offsets + lengths
+const BG = '#0a0a0a'
+const WEEKEND_BG = '#0e0e0e'
 
-// Returns array of week rows, each a 7-element array (null = blank cell)
-function getWeekRows(year, monthIdx) {
-  const count = getDaysInMonth(new Date(year, monthIdx, 1))
-  const firstDow = new Date(year, monthIdx, 1).getDay() // 0 = Sunday
-  const rows = []
-  let row = Array(firstDow).fill(null)
-  for (let d = 1; d <= count; d++) {
-    row.push(d)
-    if (row.length === 7) { rows.push(row); row = [] }
-  }
-  if (row.length > 0) {
-    while (row.length < 7) row.push(null)
-    rows.push(row)
-  }
-  return rows
+function getDaysInMonthArray(year, month) {
+  const count = getDaysInMonth(new Date(year, month, 1))
+  return Array.from({ length: count }, (_, i) => i + 1)
 }
 
 function dateKey(year, month, day) {
@@ -76,7 +67,7 @@ export function AnnualView({ year, onDayClick }) {
 
   return (
     <div style={{ padding: '12px 8px', minHeight: '100svh' }}>
-      {/* Header */}
+      {/* App header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
         paddingBottom: 12, borderBottom: '1px solid #222', marginBottom: 8,
@@ -96,28 +87,28 @@ export function AnnualView({ year, onDayClick }) {
         >+</button>
       </div>
 
-      {/* Day-of-week header */}
-      <DayOfWeekHeader />
+      {/* Scrollable calendar body — all rows scroll as one unit */}
+      <div style={{ overflowX: 'auto' }}>
+        <DayOfWeekHeader />
 
-      {/* Month rows */}
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {MONTH_NAMES.map((monthName, monthIdx) => (
-          <MonthRow
-            key={monthIdx}
-            year={year}
-            monthIdx={monthIdx}
-            monthName={monthName}
-            bandsByDay={bandsByDay}
-            dotsByDay={dotsByDay}
-            noteDays={noteDays}
-            today={today}
-            onDayClick={onDayClick}
-          />
-        ))}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {MONTH_NAMES.map((monthName, monthIdx) => (
+            <MonthRow
+              key={monthIdx}
+              year={year}
+              monthIdx={monthIdx}
+              monthName={monthName}
+              bandsByDay={bandsByDay}
+              dotsByDay={dotsByDay}
+              noteDays={noteDays}
+              today={today}
+              onDayClick={onDayClick}
+            />
+          ))}
+        </div>
+
+        <DayOfWeekHeader />
       </div>
-
-      {/* Day-of-week footer */}
-      <DayOfWeekHeader bottom />
 
       {modal && (
         <EventModal
@@ -131,83 +122,88 @@ export function AnnualView({ year, onDayClick }) {
   )
 }
 
-function DayOfWeekHeader({ bottom }) {
+function DayOfWeekHeader() {
   return (
-    <div style={{
-      display: 'flex',
-      paddingLeft: MONTH_LABEL_WIDTH,
-      borderTop: bottom ? '1px solid #1a1a1a' : 'none',
-      borderBottom: bottom ? 'none' : '1px solid #1a1a1a',
-    }}>
-      {DOW_LABELS.map((label, i) => (
-        <div key={i} style={{
-          width: DAY_CELL_WIDTH,
-          minWidth: DAY_CELL_WIDTH,
-          textAlign: 'center',
-          padding: '5px 0',
-          fontSize: 10,
-          fontWeight: 600,
-          color: (i === 0 || i === 6) ? '#383838' : '#4a4a4a',
-          letterSpacing: 0.5,
-        }}>
-          {label}
-        </div>
-      ))}
+    <div style={{ display: 'flex' }}>
+      {/* Sticky spacer aligns with month label column */}
+      <div style={{
+        width: MONTH_LABEL_WIDTH, flexShrink: 0,
+        position: 'sticky', left: 0, zIndex: 2, background: BG,
+      }} />
+      {Array.from({ length: TOTAL_COLS }, (_, i) => {
+        const dow = i % 7
+        const isWeekend = dow === 0 || dow === 6
+        return (
+          <div key={i} style={{
+            width: DAY_CELL_WIDTH, minWidth: DAY_CELL_WIDTH,
+            textAlign: 'center', padding: '5px 0',
+            fontSize: 10, fontWeight: 600, letterSpacing: 0.3,
+            color: isWeekend ? '#3a3a3a' : '#4a4a4a',
+            background: isWeekend ? WEEKEND_BG : BG,
+          }}>
+            {DOW_LABELS[dow]}
+          </div>
+        )
+      })}
     </div>
   )
 }
 
 function MonthRow({ year, monthIdx, monthName, bandsByDay, dotsByDay, noteDays, today, onDayClick }) {
-  const weekRows = getWeekRows(year, monthIdx)
+  const offset = new Date(year, monthIdx, 1).getDay() // 0 = Sunday
+  const days = getDaysInMonthArray(year, monthIdx)
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'flex-start',
+      display: 'flex', alignItems: 'stretch',
       borderBottom: '1px solid #1a1a1a',
     }}>
-      {/* Month label */}
+      {/* Sticky month label */}
       <div style={{
-        width: MONTH_LABEL_WIDTH,
-        flexShrink: 0,
-        paddingTop: 7,
+        width: MONTH_LABEL_WIDTH, flexShrink: 0,
+        position: 'sticky', left: 0, zIndex: 1, background: BG,
+        display: 'flex', alignItems: 'flex-start', paddingTop: 6,
         fontSize: 11, fontWeight: 600, color: '#444',
         letterSpacing: 0.5, textTransform: 'uppercase',
       }}>
         {monthName}
       </div>
 
-      {/* Week rows */}
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {weekRows.map((week, weekIdx) => (
-          <div key={weekIdx} style={{ display: 'flex', alignItems: 'stretch' }}>
-            {week.map((day, colIdx) => {
-              if (day === null) {
-                return <div key={colIdx} style={{ width: DAY_CELL_WIDTH, minWidth: DAY_CELL_WIDTH }} />
-              }
-              const key = dateKey(year, monthIdx, day)
-              const bands = bandsByDay[key] ?? []
-              const dots = dotsByDay[key] ?? []
-              const hasNote = noteDays.has(key)
-              const isToday = key === today
-              const isWeekend = colIdx === 0 || colIdx === 6
+      {/* Blank offset cells */}
+      {Array.from({ length: offset }, (_, i) => {
+        const isWeekend = i === 0 || i === 6
+        return (
+          <div key={`b${i}`} style={{
+            width: DAY_CELL_WIDTH, minWidth: DAY_CELL_WIDTH,
+            background: isWeekend ? WEEKEND_BG : 'transparent',
+          }} />
+        )
+      })}
 
-              return (
-                <DayCell
-                  key={day}
-                  day={day}
-                  dayKey={key}
-                  bands={bands}
-                  dots={dots}
-                  hasNote={hasNote}
-                  isToday={isToday}
-                  isWeekend={isWeekend}
-                  onClick={() => onDayClick(key)}
-                />
-              )
-            })}
-          </div>
-        ))}
-      </div>
+      {/* Day cells */}
+      {days.map(day => {
+        const colIdx = (offset + day - 1) % 7
+        const isWeekend = colIdx === 0 || colIdx === 6
+        const key = dateKey(year, monthIdx, day)
+        const bands = bandsByDay[key] ?? []
+        const dots = dotsByDay[key] ?? []
+        const hasNote = noteDays.has(key)
+        const isToday = key === today
+
+        return (
+          <DayCell
+            key={day}
+            day={day}
+            dayKey={key}
+            bands={bands}
+            dots={dots}
+            hasNote={hasNote}
+            isToday={isToday}
+            isWeekend={isWeekend}
+            onClick={() => onDayClick(key)}
+          />
+        )
+      })}
     </div>
   )
 }
@@ -226,7 +222,7 @@ function DayCell({ day, dayKey, bands, dots, hasNote, isToday, isWeekend, onClic
         width: DAY_CELL_WIDTH, minWidth: DAY_CELL_WIDTH, cursor: 'pointer',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         paddingTop: 4, paddingBottom: 4, gap: 2,
-        background: isToday ? '#16162a' : 'transparent',
+        background: isToday ? '#16162a' : isWeekend ? WEEKEND_BG : 'transparent',
         borderRadius: isToday ? 4 : 0,
       }}
     >

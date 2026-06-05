@@ -66,48 +66,50 @@ export function AnnualView({ year, onDayClick }) {
   const today = format(new Date(), 'yyyy-MM-dd')
 
   return (
-    <div style={{ padding: '12px 8px', minHeight: '100svh' }}>
+    <div style={{ padding: '12px 8px', height: '100svh', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
       {/* App header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
-        paddingBottom: 12, borderBottom: '1px solid #222', marginBottom: 8,
+        paddingBottom: 12, borderBottom: '1px solid #222', flexShrink: 0,
       }}>
         <span style={{ fontSize: 22, fontWeight: 600, color: '#e5e5e5', letterSpacing: -0.5 }}>{year}</span>
         <span style={{ fontSize: 13, color: '#555', flex: 1 }}>Annual Planner</span>
-        <button
-          onClick={() => setSettingsOpen(true)}
-          style={gearBtnStyle}
-          title="Settings"
-          aria-label="Settings"
-        ><Settings size={15} color="#555" /></button>
-        <button
-          onClick={() => setModal({ defaultDate: format(new Date(), 'yyyy-MM-dd') })}
-          style={plusBtnStyle}
-          title="New event"
-        >+</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 20 }}>
+          <button
+            onClick={() => setSettingsOpen(true)}
+            style={gearBtnStyle}
+            title="Settings"
+            aria-label="Settings"
+          ><Settings size={15} color="#555" /></button>
+          <button
+            onClick={() => setModal({ defaultDate: format(new Date(), 'yyyy-MM-dd') })}
+            style={plusBtnStyle}
+            title="New event"
+          >+</button>
+        </div>
       </div>
 
-      {/* Scrollable calendar body — all rows scroll as one unit */}
-      <div style={{ overflowX: 'auto' }}>
-        <DayOfWeekHeader />
+      {/* Scrollable calendar body — fills remaining viewport height */}
+      <div style={{ overflowX: 'auto', flex: 1, minHeight: 0, marginTop: 20 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <DayOfWeekHeader />
 
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {MONTH_NAMES.map((monthName, monthIdx) => (
-            <MonthRow
-              key={monthIdx}
-              year={year}
-              monthIdx={monthIdx}
-              monthName={monthName}
-              bandsByDay={bandsByDay}
-              dotsByDay={dotsByDay}
-              noteDays={noteDays}
-              today={today}
-              onDayClick={onDayClick}
-            />
-          ))}
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+            {MONTH_NAMES.map((monthName, monthIdx) => (
+              <MonthRow
+                key={monthIdx}
+                year={year}
+                monthIdx={monthIdx}
+                monthName={monthName}
+                bandsByDay={bandsByDay}
+                dotsByDay={dotsByDay}
+                noteDays={noteDays}
+                today={today}
+                onDayClick={onDayClick}
+              />
+            ))}
+          </div>
         </div>
-
-        <DayOfWeekHeader />
       </div>
 
       {modal && (
@@ -156,7 +158,7 @@ function MonthRow({ year, monthIdx, monthName, bandsByDay, dotsByDay, noteDays, 
   return (
     <div style={{
       display: 'flex', alignItems: 'stretch',
-      borderBottom: '1px solid #1a1a1a',
+      borderBottom: '1px solid #1a1a1a', flex: 1,
     }}>
       {/* Sticky month label */}
       <div style={{

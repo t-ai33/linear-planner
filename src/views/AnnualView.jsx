@@ -109,6 +109,8 @@ export function AnnualView({ year, onDayClick }) {
               />
             ))}
           </div>
+
+          <DayOfWeekHeader />
         </div>
       </div>
 

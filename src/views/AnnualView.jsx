@@ -7,10 +7,25 @@ import { EventModal } from '../components/EventModal'
 import { SettingsModal } from '../components/SettingsModal'
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const DOW_LABELS = ['S','M','T','W','T','F','S']
+const MONTH_LABEL_WIDTH = 36
+const DAY_CELL_WIDTH = 32
 
-function getDaysInMonthArray(year, month) {
-  const count = getDaysInMonth(new Date(year, month, 1))
-  return Array.from({ length: count }, (_, i) => i + 1)
+// Returns array of week rows, each a 7-element array (null = blank cell)
+function getWeekRows(year, monthIdx) {
+  const count = getDaysInMonth(new Date(year, monthIdx, 1))
+  const firstDow = new Date(year, monthIdx, 1).getDay() // 0 = Sunday
+  const rows = []
+  let row = Array(firstDow).fill(null)
+  for (let d = 1; d <= count; d++) {
+    row.push(d)
+    if (row.length === 7) { rows.push(row); row = [] }
+  }
+  if (row.length > 0) {
+    while (row.length < 7) row.push(null)
+    rows.push(row)
+  }
+  return rows
 }
 
 function dateKey(year, month, day) {
@@ -24,9 +39,8 @@ export function AnnualView({ year, onDayClick }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   const { bandsByDay, dotsByDay } = useMemo(() => {
-    const bands = {}   // dayKey → [{ event, color, startKey, endKey }]
-    const dots = {}    // dayKey → [color, ...]  (timed single-day events)
-
+    const bands = {}
+    const dots = {}
     const yearStart = `${year}-01-01`
     const yearEnd = `${year}-12-31`
 
@@ -37,7 +51,6 @@ export function AnnualView({ year, onDayClick }) {
       const isMultiDay = startKey !== endKey
 
       if (event.isAllDay || isMultiDay) {
-        // Show as a colored band across every day it spans
         const effectiveStart = startKey < yearStart ? yearStart : startKey
         const effectiveEnd = endKey > yearEnd ? yearEnd : endKey
         let cursor = effectiveStart
@@ -49,7 +62,6 @@ export function AnnualView({ year, onDayClick }) {
           cursor = d.toISOString().slice(0, 10)
         }
       } else {
-        // Timed single-day event — just a dot on that day
         if (startKey >= yearStart && startKey <= yearEnd) {
           if (!dots[startKey]) dots[startKey] = []
           dots[startKey].push(color)
@@ -84,6 +96,9 @@ export function AnnualView({ year, onDayClick }) {
         >+</button>
       </div>
 
+      {/* Day-of-week header */}
+      <DayOfWeekHeader />
+
       {/* Month rows */}
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {MONTH_NAMES.map((monthName, monthIdx) => (
@@ -101,6 +116,9 @@ export function AnnualView({ year, onDayClick }) {
         ))}
       </div>
 
+      {/* Day-of-week footer */}
+      <DayOfWeekHeader bottom />
+
       {modal && (
         <EventModal
           event={null}
@@ -113,53 +131,88 @@ export function AnnualView({ year, onDayClick }) {
   )
 }
 
+function DayOfWeekHeader({ bottom }) {
+  return (
+    <div style={{
+      display: 'flex',
+      paddingLeft: MONTH_LABEL_WIDTH,
+      borderTop: bottom ? '1px solid #1a1a1a' : 'none',
+      borderBottom: bottom ? 'none' : '1px solid #1a1a1a',
+    }}>
+      {DOW_LABELS.map((label, i) => (
+        <div key={i} style={{
+          width: DAY_CELL_WIDTH,
+          minWidth: DAY_CELL_WIDTH,
+          textAlign: 'center',
+          padding: '5px 0',
+          fontSize: 10,
+          fontWeight: 600,
+          color: (i === 0 || i === 6) ? '#383838' : '#4a4a4a',
+          letterSpacing: 0.5,
+        }}>
+          {label}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function MonthRow({ year, monthIdx, monthName, bandsByDay, dotsByDay, noteDays, today, onDayClick }) {
-  const days = getDaysInMonthArray(year, monthIdx)
+  const weekRows = getWeekRows(year, monthIdx)
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'stretch',
-      borderBottom: '1px solid #1a1a1a', minHeight: 56,
+      display: 'flex', alignItems: 'flex-start',
+      borderBottom: '1px solid #1a1a1a',
     }}>
+      {/* Month label */}
       <div style={{
-        width: 36, flexShrink: 0,
-        display: 'flex', alignItems: 'flex-start', paddingTop: 6,
+        width: MONTH_LABEL_WIDTH,
+        flexShrink: 0,
+        paddingTop: 7,
         fontSize: 11, fontWeight: 600, color: '#444',
         letterSpacing: 0.5, textTransform: 'uppercase',
       }}>
         {monthName}
       </div>
 
-      <div style={{ display: 'flex', flex: 1, overflowX: 'auto' }}>
-        {days.map(day => {
-          const key = dateKey(year, monthIdx, day)
-          const bands = bandsByDay[key] ?? []
-          const dots = dotsByDay[key] ?? []
-          const hasNote = noteDays.has(key)
-          const isToday = key === today
-          const isWeekend = [0, 6].includes(new Date(key + 'T12:00:00').getDay())
+      {/* Week rows */}
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {weekRows.map((week, weekIdx) => (
+          <div key={weekIdx} style={{ display: 'flex', alignItems: 'stretch' }}>
+            {week.map((day, colIdx) => {
+              if (day === null) {
+                return <div key={colIdx} style={{ width: DAY_CELL_WIDTH, minWidth: DAY_CELL_WIDTH }} />
+              }
+              const key = dateKey(year, monthIdx, day)
+              const bands = bandsByDay[key] ?? []
+              const dots = dotsByDay[key] ?? []
+              const hasNote = noteDays.has(key)
+              const isToday = key === today
+              const isWeekend = colIdx === 0 || colIdx === 6
 
-          return (
-            <DayCell
-              key={day}
-              day={day}
-              dayKey={key}
-              bands={bands}
-              dots={dots}
-              hasNote={hasNote}
-              isToday={isToday}
-              isWeekend={isWeekend}
-              onClick={() => onDayClick(key)}
-            />
-          )
-        })}
+              return (
+                <DayCell
+                  key={day}
+                  day={day}
+                  dayKey={key}
+                  bands={bands}
+                  dots={dots}
+                  hasNote={hasNote}
+                  isToday={isToday}
+                  isWeekend={isWeekend}
+                  onClick={() => onDayClick(key)}
+                />
+              )
+            })}
+          </div>
+        ))}
       </div>
     </div>
   )
 }
 
 function DayCell({ day, dayKey, bands, dots, hasNote, isToday, isWeekend, onClick }) {
-  // Deduplicate bands by event id
   const uniqueBands = []
   const seen = new Set()
   for (const b of bands) {
@@ -170,14 +223,13 @@ function DayCell({ day, dayKey, bands, dots, hasNote, isToday, isWeekend, onClic
     <div
       onClick={onClick}
       style={{
-        width: 32, minWidth: 32, cursor: 'pointer',
+        width: DAY_CELL_WIDTH, minWidth: DAY_CELL_WIDTH, cursor: 'pointer',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         paddingTop: 4, paddingBottom: 4, gap: 2,
         background: isToday ? '#16162a' : 'transparent',
         borderRadius: isToday ? 4 : 0,
       }}
     >
-      {/* Day number + optional note icon inline */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 2, lineHeight: 1 }}>
         <span style={{
           fontSize: 11,
@@ -191,7 +243,6 @@ function DayCell({ day, dayKey, bands, dots, hasNote, isToday, isWeekend, onClic
         )}
       </div>
 
-      {/* Multi-day / all-day event bands */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1, width: '100%', paddingInline: 2 }}>
         {uniqueBands.slice(0, 3).map(b => (
           <EventBand key={b.event.id} color={b.color} title={b.event.title} day={dayKey} start={b.startKey} end={b.endKey} />
@@ -201,7 +252,6 @@ function DayCell({ day, dayKey, bands, dots, hasNote, isToday, isWeekend, onClic
         )}
       </div>
 
-      {/* Timed event dots */}
       {dots.length > 0 && (
         <div style={{ display: 'flex', gap: 2, justifyContent: 'center', marginTop: 1 }}>
           {dots.slice(0, 3).map((color, i) => (
